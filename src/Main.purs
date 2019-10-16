@@ -19,9 +19,9 @@ instance eqPlayer :: Eq Player where
   eq _ _ = false
 
 instance ordPlayer :: Ord Player where
-   compare X O = GT
-   compare O X = LT
-   compare _ _ = EQ
+  compare X O = GT
+  compare O X = LT
+  compare _ _ = EQ
 
 instance showPlayer :: Show Player where
   show X = "X"
@@ -42,8 +42,7 @@ instance eqToken :: Eq Token where
 instance ordToken :: Ord Token where
   compare (Token x) (Token o) = compare x o
 
-type Position
-  = Int
+type Position = Int
 
 type Board
   = List (Tuple Position Token)
@@ -90,8 +89,6 @@ isGameOver { active, board } =
       , [ 3, 5, 7 ]
       ]
 
-    -- isTurnAvailable = turnAvailable board
-
     isGameWon = chkWin winSeq board
 
     isDraw = chkDraw winSeq board
@@ -103,36 +100,31 @@ isGameOver { active, board } =
         Just Draw
       else
         Nothing
+
+chkWin :: WinSeq -> Board -> Boolean
+chkWin w b = any identity $ map (allMatch <<< map (flip lookup b) <<< fromFoldable) w
+
+chkDraw :: WinSeq -> Board -> Boolean
+chkDraw w b = (_ == length w) $ length $ filter ((_ >= 2) <<< distinctCount <<< filter (isPlayer <<< flip lookup b) <<< fromFoldable) w
   where
-  chkWin :: WinSeq -> Board -> Boolean
-  chkWin w b = any identity $ map (allMatch <<< map (flip lookup b) <<< fromFoldable) w
+  distinctCount = length <<< group <<< sort
 
-  -- turnAvailable :: Board -> Boolean
-  -- turnAvailable = (_ > 0) <<< length <<< filter (getPlayer >>> ((==) Nothing))
-  --   where
-  --   getPlayer :: Tuple Position Token -> Maybe Player
-  --   getPlayer (Tuple p (Token x)) = x
-  
-  chkDraw :: WinSeq -> Board -> Boolean
-  chkDraw w b = (_ == length w) $ length $ filter ((_ >= 2) <<< distinctCount <<< filter (isPlayer <<< flip lookup b) <<< fromFoldable) w
-    where
-    distinctCount = length <<< group <<< sort
-
-    isPlayer :: Maybe Token -> Boolean
-    isPlayer (Just (Token (Just _))) = true
-    isPlayer (Just (Token Nothing))  = false
-    isPlayer Nothing                 = false 
+  isPlayer :: Maybe Token -> Boolean
+  isPlayer (Just (Token (Just _))) = true
+  isPlayer (Just (Token Nothing))  = false
+  isPlayer Nothing                 = false 
 
 playTurn :: State -> Position -> Either String State
 playTurn s p = do
-  board <- note "Update Failed" $ updateAt p (Tuple p (Token (Just s.active))) s.board
+  board <- note "Game State update failed!" $ updateAt p (Tuple p (Token (Just s.active))) s.board
   pure
     { active : togglePlayer s.active
     , board
     }
-  where
-  togglePlayer X = O
-  togglePlayer O = X
+
+togglePlayer :: Player -> Player
+togglePlayer X = O
+togglePlayer O = X
 
 initial :: State
 initial =

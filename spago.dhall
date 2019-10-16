@@ -5,7 +5,14 @@ You can edit this file as you like.
 { name =
     "my-project"
 , dependencies =
-    [ "console", "effect", "lists", "psci-support", "tuples" ]
+    [ "aff"
+    , "console"
+    , "effect"
+    , "functions"
+    , "lists"
+    , "psci-support"
+    , "tuples"
+    ]
 , packages =
     ./packages.dhall
 , sources =
