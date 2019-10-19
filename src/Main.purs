@@ -2,12 +2,18 @@ module Main where
 
 import Prelude
 
-import Data.Either (Either, note)
-import Data.List (List(..), any, filter, fromFoldable, group, length, range, sort, updateAt, (:))
+import Data.Either (Either(..), note)
+import Data.Foldable (and, or)
+import Data.Int (fromString) as INT
+import Data.List (List(..), filter, fromFoldable, group, length, range, sort, updateAt, (!!), (:))
 import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..), lookup)
 import Effect (Effect)
-import Effect.Class.Console (logShow)
+import Effect.Aff (Aff, launchAff_)
+import Effect.Class (liftEffect)
+import Effect.Class.Console (log, logShow)
+import Readline (ReadlineInterface)
+import Readline (closeInterface, createInterface, prompt) as RL
 
 data Player
   = X
@@ -26,13 +32,13 @@ instance ordPlayer :: Ord Player where
 instance showPlayer :: Show Player where
   show X = "X"
   show O = "O"
-     
+
 newtype Token
   = Token (Maybe Player)
 
 instance showToken :: Show Token where
   show (Token (Just p)) = show p
-  show (Token Nothing) = " "
+  show (Token Nothing) = "_"
 
 instance eqToken :: Eq Token where
   eq (Token (Just x)) (Token (Just o)) = x == o
@@ -42,7 +48,8 @@ instance eqToken :: Eq Token where
 instance ordToken :: Ord Token where
   compare (Token x) (Token o) = compare x o
 
-type Position = Int
+type Position
+  = Int
 
 type Board
   = List (Tuple Position Token)
@@ -64,12 +71,15 @@ type State
     }
 
 showBoard :: Board -> String
-showBoard Nil = "Board can't be empty."
+showBoard Nil = ""
 showBoard (t : ts) = showTurn t <> showBoard ts
   where
   showTurn (Tuple p tok)
     | p `mod` 3 == 0 = show tok <> "\n"
     | otherwise = show tok <> " "
+
+showBoardAff :: Board -> Aff Unit
+showBoardAff = liftEffect <<< log <<< showBoard
 
 allMatch :: ∀ a. Eq a => List a -> Boolean
 allMatch (a : b : xs) = a == b && allMatch (b : xs)
@@ -88,9 +98,7 @@ isGameOver { active, board } =
       , [ 1, 5, 9 ]
       , [ 3, 5, 7 ]
       ]
-
     isGameWon = chkWin winSeq board
-
     isDraw = chkDraw winSeq board
   in
     if isGameWon then
@@ -100,31 +108,55 @@ isGameOver { active, board } =
         Just Draw
       else
         Nothing
-
-chkWin :: WinSeq -> Board -> Boolean
-chkWin w b = any identity $ map (allMatch <<< map (flip lookup b) <<< fromFoldable) w
-
-chkDraw :: WinSeq -> Board -> Boolean
-chkDraw w b = (_ == length w) $ length $ filter ((_ >= 2) <<< distinctCount <<< filter (isPlayer <<< flip lookup b) <<< fromFoldable) w
   where
-  distinctCount = length <<< group <<< sort
+  chkWin :: WinSeq -> Board -> Boolean
+  chkWin w b = or $ map (allMatch <<< map (flip lookup b) <<< fromFoldable) w
 
-  isPlayer :: Maybe Token -> Boolean
-  isPlayer (Just (Token (Just _))) = true
-  isPlayer (Just (Token Nothing))  = false
-  isPlayer Nothing                 = false 
+  chkDraw :: WinSeq -> Board -> Boolean
+  chkDraw w b = (_ == length w) $ length $ filter (drawLogic <<< map (flip lookup b) <<< fromFoldable) w
+    where
+    -- Draw Logic:
+    -- 1. A combination ie [_,_,_] should have atleast 2 player turns
+    -- 2. The middle element of a combination should be a player turn (X or O) ie. 
+    --    It shouldn't be an empty turn. (_)
+    drawLogic a = and
+      [ (_ >= 2) $ distinctCount $ map isPlayer a 
+      , isPlayer $ join $ a !! 1
+      ]
+      
+    distinctCount = (_ - 1) <<< length <<< group <<< sort
+
+    isPlayer :: Maybe Token -> Boolean
+    isPlayer (Just (Token (Just _))) = true
+    isPlayer (Just (Token Nothing))  = false
+    isPlayer Nothing                 = false
 
 playTurn :: State -> Position -> Either String State
 playTurn s p = do
-  board <- note "Game State update failed!" $ updateAt p (Tuple p (Token (Just s.active))) s.board
-  pure
-    { active : togglePlayer s.active
-    , board
-    }
+  b <- note "Game State update failed!" $ updateAt (p-1) (Tuple p (Token (Just s.active))) s.board
+  pure $ s { board = b }
 
-togglePlayer :: Player -> Player
-togglePlayer X = O
-togglePlayer O = X
+togglePlayer :: State -> State
+togglePlayer s = s { active = toggle s.active } 
+  where
+  toggle :: Player -> Player
+  toggle X = O
+  toggle O = X
+
+runGame :: ReadlineInterface -> State -> Aff (Either String GameOver)
+runGame rl s = do
+  turn         <- RL.prompt rl $ availableTurns s
+  boardUpdated <- pure $ playTurn s =<< (note ("Couldn't convert " <> turn <> " to Int") $ INT.fromString turn)
+  case boardUpdated of
+    Right stateWithUpdatedBoard -> do
+      showBoardAff stateWithUpdatedBoard.board
+      case isGameOver stateWithUpdatedBoard of
+        Just p  -> pure $ Right p
+        Nothing -> runGame rl (togglePlayer stateWithUpdatedBoard)
+    Left e -> pure $ Left e
+  where
+  availableTurns :: State -> String
+  availableTurns { active, board } = "Waiting for next turn.\n"
 
 initial :: State
 initial =
@@ -133,5 +165,10 @@ initial =
   }
 
 main :: Effect Unit
-main = do
-  logShow $ isGameOver initial
+main =
+  launchAff_ do
+    rl <- RL.createInterface
+    showBoardAff initial.board
+    res <- runGame rl initial
+    logShow res
+    RL.closeInterface rl
