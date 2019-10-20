@@ -1,5 +1,5 @@
 module Readline
- ( prompt
+ ( question
  , createInterface
  , closeInterface
  , ReadlineInterface
@@ -18,7 +18,7 @@ foreign import data ReadlineInterface :: Type
 
 foreign import createInterface_ :: Effect ReadlineInterface
 
-foreign import prompt_ :: ReadlineInterface -> String -> Callback String -> Effect Unit
+foreign import question_ :: ReadlineInterface -> String -> Callback String -> Effect Unit
 
 foreign import closeInterface_ :: ReadlineInterface -> Effect Unit
 
@@ -28,6 +28,6 @@ createInterface = liftEffect createInterface_
 closeInterface :: ReadlineInterface ->  Aff Unit
 closeInterface = liftEffect <<< closeInterface_
 
-prompt :: ReadlineInterface -> String -> Aff String
-prompt rl q = makeAff \cb -> 
-   prompt_ rl q (cb <<< Right) $> nonCanceler
+question :: ReadlineInterface -> String -> Aff String
+question rl q = makeAff \cb -> 
+  question_ rl q (cb <<< Right) $> nonCanceler
