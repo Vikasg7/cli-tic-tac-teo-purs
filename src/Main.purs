@@ -5,15 +5,14 @@ import Prelude
 import Data.Either (Either(..), note)
 import Data.Foldable (and, or)
 import Data.Int (fromString) as INT
-import Data.List (List(..), filter, fromFoldable, group, length, range, sort, updateAt, (!!), (:))
+import Data.List (List(..), elemIndex, filter, fromFoldable, group, length, range, sort, updateAt, (!!), (:))
 import Data.Maybe (Maybe(..))
-import Data.Tuple (Tuple(..), lookup)
+import Data.Tuple (Tuple(..), fst, lookup)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Class.Console (log, logShow)
-import Readline (ReadlineInterface)
-import Readline (closeInterface, createInterface, prompt) as RL
+import Readline (ReadlineInterface, closeInterface, createInterface, prompt) as RL
 
 data Player
   = X
@@ -116,7 +115,7 @@ isGameOver { active, board } =
   chkDraw w b = (_ == length w) $ length $ filter (drawLogic <<< map (flip lookup b) <<< fromFoldable) w
     where
     -- Draw Logic:
-    -- 1. A combination ie [_,_,_] should have atleast 2 player turns
+    -- 1. A combination ie [_,_,_] should have atleast 2 player turns AND
     -- 2. The middle element of a combination should be a player turn (X or O) ie. 
     --    It shouldn't be an empty turn. (_)
     drawLogic a = and
@@ -129,7 +128,7 @@ isGameOver { active, board } =
     isPlayer :: Maybe Token -> Boolean
     isPlayer (Just (Token (Just _))) = true
     isPlayer (Just (Token Nothing))  = false
-    isPlayer Nothing                 = false
+    isPlayer Nothing = false
 
 playTurn :: State -> Position -> Either String State
 playTurn s p = do
@@ -143,9 +142,9 @@ togglePlayer s = s { active = toggle s.active }
   toggle X = O
   toggle O = X
 
-runGame :: ReadlineInterface -> State -> Aff (Either String GameOver)
+runGame :: RL.ReadlineInterface -> State -> Aff (Either String GameOver)
 runGame rl s = do
-  turn         <- RL.prompt rl $ availableTurns s
+  turn <- RL.prompt rl $ availableTurns s
   boardUpdated <- pure $ playTurn s =<< (note ("Couldn't convert " <> turn <> " to Int") $ INT.fromString turn)
   case boardUpdated of
     Right stateWithUpdatedBoard -> do
@@ -158,6 +157,25 @@ runGame rl s = do
   availableTurns :: State -> String
   availableTurns { active, board } = "Waiting for next turn.\n"
 
+validateTurn :: Board -> String -> Either String Position
+validateTurn b =
+  isEmpty               >>> note "Turn can't be empty." 
+  >=> INT.fromString    >>> note "Couldn't convert turn to Int." 
+  >=> isValidTurn       >>> note "Turn is invalid."
+  >=> isAlreadyPlayed b >>> note "Turn already played."
+  where
+  isEmpty :: String -> Maybe String
+  isEmpty t = if t == "" then Nothing else Just t
+
+  toInt :: String -> Maybe Position
+  toInt = INT.fromString 
+
+  isAlreadyPlayed :: Board -> Position -> Maybe Position
+  isAlreadyPlayed board p = p <$ (elemIndex p $ fst <$> board)
+
+  isValidTurn :: Position -> Maybe Position
+  isValidTurn p = p <$ (elemIndex p (1:2:3:4:5:6:7:8:9:Nil))
+
 initial :: State
 initial =
   { active: O
@@ -165,10 +183,9 @@ initial =
   }
 
 main :: Effect Unit
-main =
-  launchAff_ do
-    rl <- RL.createInterface
-    showBoardAff initial.board
-    res <- runGame rl initial
-    logShow res
-    RL.closeInterface rl
+main = launchAff_ do
+  rl <- RL.createInterface
+  showBoardAff initial.board
+  res <- runGame rl initial
+  logShow res
+  RL.closeInterface rl
