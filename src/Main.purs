@@ -180,13 +180,13 @@ togglePlayer s = s { active = toggle s.active }
   toggle X = O
   toggle O = X
 
-runGame :: RL.ReadlineInterface -> State -> Aff (Either String GameOver)
+runGame :: RL.ReadlineInterface -> State -> Aff GameOver
 runGame rl s = do
   pos <- getInputPos rl s
   updated <- pure $ playTurn s pos
   logBoard updated.board
   case isGameOver updated of
-    Just p  -> pure (Right p)
+    Just p  -> pure p
     Nothing -> runGame rl (togglePlayer updated)
 
 initial :: State
