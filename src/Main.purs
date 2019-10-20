@@ -9,7 +9,7 @@ import Data.List (List(..), elemIndex, filter, fromFoldable, group, length, sort
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Tuple (Tuple(..), fst, lookup, snd)
 import Effect (Effect)
-import Effect.Aff (Aff, Milliseconds(..), delay, launchAff_)
+import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Class.Console (log, logShow)
 import Readline (ReadlineInterface, closeInterface, createInterface, question) as RL
@@ -109,14 +109,14 @@ isGameOver :: State -> Maybe GameOver
 isGameOver { active, board } =
   let
     winSeq = fromFoldable
-      [ [ 1, 2, 3 ]
-      , [ 4, 5, 6 ]
-      , [ 7, 8, 9 ]
-      , [ 1, 4, 7 ]
-      , [ 2, 5, 8 ]
-      , [ 3, 6, 9 ]
-      , [ 1, 5, 9 ]
-      , [ 3, 5, 7 ]
+      [ [ 7,8,9 ]
+      , [ 4,5,6 ]
+      , [ 1,2,3 ]
+      , [ 7,4,1 ]
+      , [ 8,5,2 ]
+      , [ 9,6,3 ]
+      , [ 7,5,3 ]
+      , [ 1,5,9 ]
       ]
     isGameWon = chkWin winSeq board
     isDraw = chkDraw winSeq board
@@ -156,7 +156,6 @@ getInputPos rl s = do
     Right p -> pure p
     Left  e -> do
       liftEffect $ log (e <> "\n")
-      delay $ Milliseconds 2000.00
       getInputPos rl s
   where
   question :: State -> String
