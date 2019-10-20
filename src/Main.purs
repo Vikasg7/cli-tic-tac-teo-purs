@@ -85,27 +85,39 @@ isPlayer :: Token -> Boolean
 isPlayer (Token (Just _)) = true
 isPlayer (Token Nothing) = false
 
+winSeq :: WinSeq
+winSeq = fromFoldable
+  [ [ 7,8,9 ]
+  , [ 4,5,6 ]
+  , [ 1,2,3 ]
+  , [ 7,4,1 ]
+  , [ 8,5,2 ]
+  , [ 9,6,3 ]
+  , [ 7,5,3 ]
+  , [ 1,5,9 ]
+  ]
+
 chkWin :: WinSeq -> Board -> Boolean
 chkWin w b = or $ map (allMatch <<< map (flip lookup b) <<< fromFoldable) w
 
 chkDraw :: WinSeq -> Board -> Boolean
 chkDraw w b = (_ == length w) $ length $ filter (drawLogic <<< map (flip lookup b) <<< fromFoldable) w
   where
-  -- Draw Logic:
-  -- 1. A combination ie [_,_,_] should have atleast 2 player turns AND
-  -- 2. The middle element of a combination should be a player turn (X or O) ie. 
-  --    It shouldn't be an empty turn. (_)
-  drawLogic a = 
-    or $ map and
-      [ [ (_ >= 2) $ distinctCount $ filter isPlayer' a 
-        , isPlayer' $ join $ a !! 1
+  drawLogic a =
+    let
+      atleastTwoPlayerTurns = (_ >= 2) $ distinctCount $ filter isPlayer' a
+      isMiddlePlayerTurn = isPlayer' $ join $ a !! 1   
+    in
+      or $ map and
+        [ [ atleastTwoPlayerTurns
+          , isMiddlePlayerTurn
+          ]
+        , [ atleastTwoPlayerTurns
+          , not $ isMiddlePlayerTurn
+          ]
         ]
-      , [ (_ >= 2) $ distinctCount $ filter isPlayer' a 
-        , not $ isPlayer' $ join $ a !! 1
-        ]
-      ]
     
-  distinctCount = (_ - 1) <<< length <<< group <<< sort
+  distinctCount = length <<< group <<< sort
 
   isPlayer' :: Maybe Token -> Boolean
   isPlayer' mt = fromMaybe false (isPlayer <$> mt) 
@@ -113,16 +125,6 @@ chkDraw w b = (_ == length w) $ length $ filter (drawLogic <<< map (flip lookup 
 isGameOver :: State -> Maybe GameOver
 isGameOver { active, board } =
   let
-    winSeq = fromFoldable
-      [ [ 7,8,9 ]
-      , [ 4,5,6 ]
-      , [ 1,2,3 ]
-      , [ 7,4,1 ]
-      , [ 8,5,2 ]
-      , [ 9,6,3 ]
-      , [ 7,5,3 ]
-      , [ 1,5,9 ]
-      ]
     isGameWon = chkWin winSeq board
     isDraw = chkDraw winSeq board
   in
@@ -171,7 +173,7 @@ getInputPos rl s = do
 
 playTurn :: State -> Position -> State
 playTurn s p = 
-  s { board =  map (\t -> iff (Token (Just s.active) <$ t) t $ (_ == p) $ fst t) s.board }
+  s { board = map (\t -> iff (Token (Just s.active) <$ t) t $ (_ == p) $ fst t) s.board }
   where
   iff th el r 
     | r = th
