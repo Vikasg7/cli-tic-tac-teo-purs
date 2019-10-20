@@ -95,10 +95,15 @@ chkDraw w b = (_ == length w) $ length $ filter (drawLogic <<< map (flip lookup 
   -- 1. A combination ie [_,_,_] should have atleast 2 player turns AND
   -- 2. The middle element of a combination should be a player turn (X or O) ie. 
   --    It shouldn't be an empty turn. (_)
-  drawLogic a = and
-    [ (_ >= 2) $ distinctCount $ filter isPlayer' a 
-    , isPlayer' $ join $ a !! 1
-    ]
+  drawLogic a = 
+    or $ map and
+      [ [ (_ >= 2) $ distinctCount $ filter isPlayer' a 
+        , isPlayer' $ join $ a !! 1
+        ]
+      , [ (_ >= 2) $ distinctCount $ filter isPlayer' a 
+        , not $ isPlayer' $ join $ a !! 1
+        ]
+      ]
     
   distinctCount = (_ - 1) <<< length <<< group <<< sort
 
