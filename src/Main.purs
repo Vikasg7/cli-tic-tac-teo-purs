@@ -29,7 +29,7 @@ data GameOver
   | Draw
 
 type WinSeq
-  = List (Array Int)
+  = List (List Int)
 
 type State
   = { active :: Player
@@ -38,7 +38,7 @@ type State
 
 instance showToken :: Show Token where
   show (Token (Just p)) = show p
-  show (Token Nothing) = "_"
+  show (Token Nothing) = " "
 
 instance eqToken :: Eq Token where
   eq (Token (Just x)) (Token (Just o)) = x == o
@@ -71,8 +71,9 @@ showBoard Nil = ""
 showBoard (t : ts) = showTurn t <> showBoard ts
   where
   showTurn (Tuple p tok)
-    | p `mod` 3 == 0 = show tok <> "\n"
-    | otherwise = show tok <> " "
+    | p == 3 = " " <> show tok <> "\n"
+    | p `mod` 3 == 0 = " " <> show tok <> "\n-----------\n"
+    | otherwise = " " <> show tok <> " |"
 
 logBoard :: Board -> Aff Unit
 logBoard = liftEffect <<< log <<< showBoard
@@ -86,22 +87,23 @@ isPlayer (Token (Just _)) = true
 isPlayer (Token Nothing) = false
 
 winSeq :: WinSeq
-winSeq = fromFoldable
-  [ [ 7,8,9 ]
-  , [ 4,5,6 ]
-  , [ 1,2,3 ]
-  , [ 7,4,1 ]
-  , [ 8,5,2 ]
-  , [ 9,6,3 ]
-  , [ 7,5,3 ]
-  , [ 1,5,9 ]
-  ]
+winSeq = 
+  fromFoldable $ map fromFoldable
+    [ [ 7,8,9 ]
+    , [ 4,5,6 ]
+    , [ 1,2,3 ]
+    , [ 7,4,1 ]
+    , [ 8,5,2 ]
+    , [ 9,6,3 ]
+    , [ 7,5,3 ]
+    , [ 1,5,9 ]
+    ]
 
 chkWin :: WinSeq -> Board -> Boolean
 chkWin w b = or $ map (allMatch <<< map (flip lookup b) <<< fromFoldable) w
 
 chkDraw :: WinSeq -> Board -> Boolean
-chkDraw w b = (_ == length w) $ length $ filter (drawLogic <<< map (flip lookup b) <<< fromFoldable) w
+chkDraw w b = (_ == length w) $ length $ filter (drawLogic <<< map (flip lookup b)) w
   where
   drawLogic a =
     let
@@ -167,7 +169,7 @@ getInputPos rl s = do
   where
   question :: State -> String
   question s = 
-    "Choose a postion for " <> show s.active <> ": " <> (availablePos s.board) <> "\n"
+    "Choose a postion for player " <> show s.active <> ": " <> (availablePos s.board) <> "\n"
     where
     availablePos = intercalate "," <<< map (show <<< fst) <<< filter (not <<< isPlayer <<< snd)
 
