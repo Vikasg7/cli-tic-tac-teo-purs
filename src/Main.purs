@@ -4,6 +4,7 @@ import Prelude
 
 import Data.Either (Either(..), note)
 import Data.Foldable (and, intercalate, or)
+import Data.Functor (mapFlipped)
 import Data.Int (fromString) as INT
 import Data.List (List(..), elemIndex, filter, fromFoldable, group, length, sort, (!!), (:))
 import Data.Maybe (Maybe(..), fromMaybe)
@@ -175,11 +176,9 @@ getInputPos rl s = do
 
 playTurn :: State -> Position -> State
 playTurn s p = 
-  s { board = map (\t -> iff (Token (Just s.active) <$ t) t $ (_ == p) $ fst t) s.board }
-  where
-  iff th el r 
-    | r = th
-    | otherwise = el   
+  s { board = mapFlipped s.board \t -> 
+        (if _ then Token (Just s.active) <$ t else  t) $ (_ == p) $ fst t
+    }
 
 togglePlayer :: State -> State
 togglePlayer s = s { active = toggle s.active } 
