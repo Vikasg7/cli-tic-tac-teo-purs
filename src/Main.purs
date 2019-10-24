@@ -6,7 +6,7 @@ import Data.Either (Either(..), note)
 import Data.Foldable (and, intercalate, or)
 import Data.Functor (mapFlipped)
 import Data.Int (fromString) as INT
-import Data.List (List(..), elemIndex, filter, fromFoldable, group, length, sort, (!!), (:))
+import Data.List (List(..), elemIndex, filter, fromFoldable, group, length, range, sort, (!!), (:))
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Tuple (Tuple(..), fst, lookup, snd)
 import Effect (Effect)
@@ -153,7 +153,7 @@ validateTurn b =
   toInt = INT.fromString 
 
   isValidTurn :: Position -> Maybe Position
-  isValidTurn p = p <$ (elemIndex p (1:2:3:4:5:6:7:8:9:Nil))
+  isValidTurn p = p <$ (elemIndex p (range 1 9))
 
   isAlreadyPlayed :: Board -> Position -> Maybe Position
   isAlreadyPlayed board p = p <$ (elemIndex p $ map fst $ filter (not <<< isPlayer <<< snd) board)
