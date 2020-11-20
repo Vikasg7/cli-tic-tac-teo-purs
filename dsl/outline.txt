@@ -1,0 +1,52 @@
+1. User presented with an empty board
+2. Ask for the turn
+   - Validate the turn
+   - If validation fails, ask again
+3. Update the Board
+4. Calculate the result
+   - If Win or Draw, exit
+   - Else Switch player and goto 2.
+
+data Player
+   = X
+   | O
+
+type Position = Int
+
+newtype Move
+   = Move (Maybe Player)
+
+data Board
+   = List Move
+
+data GameState
+   = { active :: Player
+     , board  :: Board
+     }
+
+data Result
+  = Winner Player
+  | Draw
+
+data Game a
+   = Ask GameState (Position -> a)
+   | Validate Position Board ((Either String Positon) -> a)
+   | Play Position GameState (GameState -> a)
+   | Check Board (Result -> a)
+   | TogglePlayer GameState (GameState -> a)
+
+data TicTacToe a
+   = ShowBoard Board a
+   | ShowPlayer Player a
+   | ShowMoves (List Move) a
+   | AskMove (Position -> a)
+   | ValidateMove Position Board ((Either String Position) -> a)
+   | PlayMove Positon Board (Board -> a)
+   | CheckBoard Board (Result -> a)
+   | ShowResult Result a
+   | TogglePlayer Player (Player -> a)
+
+
+data Interaction a
+   = Log String a
+   | Ask String (String -> a)
