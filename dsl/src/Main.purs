@@ -2,17 +2,20 @@ module Main where
 
 import Prelude
 
-import Types (Board(..), Cell(..), GameState, Player(..), Position)
 import Data.Either (Either(..))
+
 import Data.Map (fromFoldable)
 import Data.Maybe (Maybe(..))
+import Data.Time.Duration (Seconds(..))
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Run (Run, runBaseAff')
-import TicTacToe (TICTACTOE, askPosition, isGameOver, playPosition, runTicTacToe, showBoard, showErrorFor, showResult, togglePlayer, validatePosition)
+import Sleep (SLEEP, runSleep, sleep)
+import TicTacToe (TICTACTOE, askPosition, isGameOver, playPosition, runTicTacToe, showBoard, showError, showResult, togglePlayer, validatePosition)
+import Types (Board(..), Cell(..), GameState, Player(..), Position)
 
-getPosition :: ∀ r. Run (tictactoe :: TICTACTOE | r) Position
+getPosition :: ∀ r. Run (tictactoe :: TICTACTOE, sleep :: SLEEP | r) Position
 getPosition = do
    showBoard
    res <- askPosition
@@ -20,10 +23,11 @@ getPosition = do
    case maybePos of
       Right pos -> pure pos
       Left err -> do
-         showErrorFor 1 err
+         showError err
+         sleep (Seconds 1.0)
          getPosition  
 
-game :: ∀ r. Run (tictactoe :: TICTACTOE | r) Unit
+game :: ∀ r. Run (tictactoe :: TICTACTOE, sleep :: SLEEP | r) Unit
 game = do
    pos <- getPosition
    playPosition pos
@@ -35,6 +39,7 @@ game = do
 main :: Effect Unit
 main = do
    runTicTacToe initialState game
+      # runSleep
       # runBaseAff'
       # launchAff_
    where

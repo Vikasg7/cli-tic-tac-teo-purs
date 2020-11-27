@@ -2,22 +2,21 @@ module TicTacToe where
 
 import Prelude
 
-import Types (Position, Result(..), Seconds, ValError, GameState)
 import Data.Either (Either)
 import Data.Maybe (Maybe(..))
 import Helper (updateActive, updateCell)
 import Logger (LOGGER, ask, erase, print, printShow, runLogger)
 import Logic (isDraw, isWon, switchPlayer, valPos)
-import Run (AFF, EFFECT, FProxy, Run, SProxy(..), case_, on)
+import Run (AFF, EFFECT, FProxy, Run, SProxy(..), on, send)
 import Run (interpret, lift) as Run
 import Run.State (STATE, evalState, get, modify)
-import Sleep (SLEEP, runSleep, sleep)
+import Types (GameState, Position, Result(..), ValError)
 
 data TicTacToeF a
    = ShowBoard a
    | AskPosition (String -> a)
    | ValidatePosition String ((Either ValError Position) -> a)
-   | ShowErrorFor Seconds ValError a
+   | ShowError ValError a
    | PlayPosition Position a
    | IsGameOver (Maybe Result -> a)
    | ShowResult Result a
@@ -39,8 +38,8 @@ askPosition = Run.lift _tictactoe (AskPosition identity)
 validatePosition :: ∀ r. String -> Run (tictactoe :: TICTACTOE | r) (Either ValError Position)
 validatePosition str = Run.lift _tictactoe (ValidatePosition str identity)
 
-showErrorFor :: ∀ r. Seconds -> ValError -> Run (tictactoe :: TICTACTOE | r) Unit
-showErrorFor seconds valErr = Run.lift _tictactoe (ShowErrorFor seconds valErr unit)
+showError :: ∀ r. ValError -> Run (tictactoe :: TICTACTOE | r) Unit
+showError valErr = Run.lift _tictactoe (ShowError valErr unit)
 
 playPosition :: ∀ r. Position -> Run (tictactoe :: TICTACTOE | r) Unit
 playPosition pos = Run.lift _tictactoe (PlayPosition pos unit)
@@ -55,7 +54,7 @@ togglePlayer :: ∀ r. Run (tictactoe :: TICTACTOE | r) Unit
 togglePlayer = Run.lift _tictactoe (TogglePlayer unit)
 
 -- Interpretor
-handleTicTacToe :: ∀ a r. TicTacToeF a -> Run ( state :: STATE GameState, logger :: LOGGER, sleep :: SLEEP | r ) a
+handleTicTacToe :: ∀ a r. TicTacToeF a -> Run ( state :: STATE GameState, logger :: LOGGER | r ) a
 handleTicTacToe = case _ of
    ShowBoard a -> do
       board <- getBoard
@@ -72,9 +71,8 @@ handleTicTacToe = case _ of
       board <- getBoard
       pure $ reply (valPos board s)
    
-   ShowErrorFor s e a -> do
+   ShowError e a -> do
       print (show e <> "\n")
-      sleep s
       pure a
       
    PlayPosition pos a -> do
@@ -109,10 +107,9 @@ handleTicTacToe = case _ of
 runTicTacToe
    :: ∀ a r
     . GameState
-   -> Run (tictactoe :: TICTACTOE) a
+   -> Run (aff :: AFF, effect :: EFFECT, tictactoe :: TICTACTOE, state :: STATE GameState, logger :: LOGGER | r) a
    -> Run (aff :: AFF, effect :: EFFECT | r) a
 runTicTacToe initialState program =
-   Run.interpret (case_ # on _tictactoe handleTicTacToe) program
+   Run.interpret (send # on _tictactoe handleTicTacToe) program
    # evalState initialState
    # runLogger
-   # runSleep

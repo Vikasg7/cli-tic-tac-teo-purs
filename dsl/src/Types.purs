@@ -13,7 +13,6 @@ data Player
    | O
 
 type Position = Int
-type Seconds = Int
 
 newtype Cell
    = Cell (Maybe Player)
